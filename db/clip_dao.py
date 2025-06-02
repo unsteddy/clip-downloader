@@ -1,5 +1,3 @@
-# clip_dao.py
-
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime
@@ -12,15 +10,26 @@ Session = sessionmaker(bind=engine)
 def add_clip_if_new(slug: str, url: str) -> bool:
     session = Session()
     try:
-        if session.query(Clip).filter_by(slug=slug).first():
-            return False
-        clip = Clip(slug=slug, url=url, status="pending", created_at=datetime.utcnow())
-        session.add(clip)
-        session.commit()
-        return True
-    except IntegrityError:
-        session.rollback()
-        return False
+        clip = session.query(Clip).filter_by(slug=slug).first()
+        if clip:
+            if clip.status == "downloaded":
+                # Already downloaded - skip
+                return False
+            elif clip.status == "failed":
+                # Reset to pending for retry
+                clip.status = "pending"
+                clip.error = None
+                clip.downloaded_at = None
+                session.commit()
+                return True
+            else:
+                # status pending or other, allow to proceed
+                return True
+        else:
+            new_clip = Clip(slug=slug, url=url, status="pending", created_at=datetime.utcnow())
+            session.add(new_clip)
+            session.commit()
+            return True
     finally:
         session.close()
 
