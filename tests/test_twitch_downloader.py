@@ -1,7 +1,8 @@
 import unittest
 from unittest.mock import patch, MagicMock
-
-from downloader.twitch.twitch_downloader import download_twitch_clip
+import os
+import shutil
+from downloader.twitch import twitch_downloader
 from db.db import engine
 from db.models import Base, Clip
 from sqlalchemy.orm import sessionmaker
@@ -15,11 +16,16 @@ class TestTwitchDownloader(unittest.TestCase):
         Base.metadata.drop_all(engine)
         Base.metadata.create_all(engine)
         self.session = Session()
+        self.test_base_dir = os.path.join(os.path.dirname(__file__), "test_clips")
+        self.test_clip_root = os.path.join(self.test_base_dir, "twitch")
+        os.makedirs(self.test_clip_root, exist_ok=True)
 
     def tearDown(self):
         self.session.close()
         Base.metadata.drop_all(engine)
+        shutil.rmtree(self.test_base_dir, ignore_errors=True)
 
+    @patch("downloader.twitch.twitch_downloader.TWITCH_CLIP_ROOT", new=os.path.join(os.path.dirname(__file__), "test_clips", "twitch"))
     @patch("subprocess.run")
     def test_successful_download_creates_correct_path(self, mock_run):
         mock_result = MagicMock()
@@ -28,24 +34,19 @@ class TestTwitchDownloader(unittest.TestCase):
         mock_run.return_value = mock_result
 
         test_url = "https://www.twitch.tv/caedrel/clip/testslug"
-        path = download_twitch_clip(test_url)
+        path = twitch_downloader.download_twitch_clip(test_url)
 
-        # Check path includes twitch, streamer, and date folders
-        self.assertIn("/clips/twitch/caedrel/", path)
-
-        # Date folder: current UTC date string
+        self.assertIn("/twitch/caedrel/", path)
         date_str = datetime.utcnow().strftime("%Y-%m-%d")
         self.assertIn(date_str, path)
-
-        # Clip slug in filename
         self.assertTrue(path.endswith("testslug.mp4"))
 
-        # Clip record updated in DB
         clip = self.session.query(Clip).filter_by(slug="testslug").first()
         self.assertIsNotNone(clip)
         self.assertEqual(clip.status, "downloaded")
         self.assertEqual(clip.path, path)
 
+    @patch("downloader.twitch.twitch_downloader.TWITCH_CLIP_ROOT", new=os.path.join(os.path.dirname(__file__), "test_clips", "twitch"))
     @patch("subprocess.run")
     def test_failed_download(self, mock_run):
         mock_result = MagicMock()
@@ -54,8 +55,9 @@ class TestTwitchDownloader(unittest.TestCase):
         mock_run.return_value = mock_result
 
         test_url = "https://www.twitch.tv/caedrel/clip/failingclip"
-        with self.assertRaises(RuntimeError):
-            download_twitch_clip(test_url)
+        path = twitch_downloader.download_twitch_clip(test_url)
+
+        self.assertEqual(path, "")
 
         clip = self.session.query(Clip).filter_by(slug="failingclip").first()
         self.assertIsNotNone(clip)
