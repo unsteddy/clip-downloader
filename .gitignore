@@ -1,0 +1,32 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+.env
+
+# VSCode / IntelliJ config
+.idea/
+.vscode/
+
+# Local SQLite DB
+clipfarm.db
+
+# Downloaded clip files
+clips/
+
+# Logs
+*.log
+logs/
+
+# Test coverage / temp files
+.coverage
+dist/
+build/
+*.egg-info/
+
+# OS files
+.DS_Store
+Thumbs.db

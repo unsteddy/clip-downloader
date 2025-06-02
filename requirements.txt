@@ -1,0 +1,19 @@
+# requirements.txt
+
+# Core dependencies
+sqlalchemy>=2.0
+requests>=2.31.0
+streamlink>=6.4.0
+
+# Testing
+unittest2; python_version<'3.0'
+
+# Optional (for subtitle module)
+# faster-whisper>=0.10.0
+# openai-whisper  # If using original whisper
+
+# For environment management (optional)
+# python-dotenv>=1.0.0
+
+# Oracle DB support (optional for production scaling)
+# cx_Oracle>=8.3.0
