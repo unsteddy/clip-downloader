@@ -1,7 +1,7 @@
 # main.py
 
 import sys
-from downloader.twitch_downloader import download_twitch_clip
+from twitch.twitch_downloader import download_twitch_clip
 
 
 def main():

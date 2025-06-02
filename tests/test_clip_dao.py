@@ -1,5 +1,5 @@
 import unittest
-
+from datetime import datetime
 from db.db import engine
 from db.models import Base, Clip
 from db.clip_dao import add_clip_if_new, mark_clip_downloaded, mark_clip_failed
@@ -72,6 +72,17 @@ class TestClipDAO(unittest.TestCase):
         self.assertEqual(clip.status, "failed")
         self.assertEqual(clip.error, "timeout error")
 
+    def test_mark_clip_downloaded_saves_full_path(self):
+        slug = "testslug_path"
+        url = "https://www.twitch.tv/clip/testslug_path"
+        add_clip_if_new(slug, url)
+        path = "/clips/twitch/caedrel/2025-06-02/testslug_path.mp4"
+        mark_clip_downloaded(slug, path)
 
-if __name__ == '__main__':
+        clip = self.session.query(Clip).filter_by(slug=slug).first()
+        self.assertEqual(clip.status, "downloaded")
+        self.assertEqual(clip.path, path)
+
+
+if __name__ == "__main__":
     unittest.main()

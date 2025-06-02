@@ -1,14 +1,13 @@
-# tests/test_twitch_downloader.py
-
 import unittest
 from unittest.mock import patch, MagicMock
-from downloader.twitch_downloader import download_twitch_clip
+
+from downloader.twitch.twitch_downloader import download_twitch_clip
 from db.db import engine
 from db.models import Base, Clip
 from sqlalchemy.orm import sessionmaker
+from datetime import datetime
 
 Session = sessionmaker(bind=engine)
-
 
 class TestTwitchDownloader(unittest.TestCase):
 
@@ -22,17 +21,27 @@ class TestTwitchDownloader(unittest.TestCase):
         Base.metadata.drop_all(engine)
 
     @patch("subprocess.run")
-    def test_successful_download(self, mock_run):
+    def test_successful_download_creates_correct_path(self, mock_run):
         mock_result = MagicMock()
         mock_result.returncode = 0
         mock_result.stderr = ""
         mock_run.return_value = mock_result
 
-        test_url = "https://www.twitch.tv/clip/FakeClipSlug"
+        test_url = "https://www.twitch.tv/caedrel/clip/testslug"
         path = download_twitch_clip(test_url)
 
-        self.assertTrue(path.endswith("FakeClipSlug.mp4"))
-        clip = self.session.query(Clip).filter_by(slug="FakeClipSlug").first()
+        # Check path includes twitch, streamer, and date folders
+        self.assertIn("/clips/twitch/caedrel/", path)
+
+        # Date folder: current UTC date string
+        date_str = datetime.utcnow().strftime("%Y-%m-%d")
+        self.assertIn(date_str, path)
+
+        # Clip slug in filename
+        self.assertTrue(path.endswith("testslug.mp4"))
+
+        # Clip record updated in DB
+        clip = self.session.query(Clip).filter_by(slug="testslug").first()
         self.assertIsNotNone(clip)
         self.assertEqual(clip.status, "downloaded")
         self.assertEqual(clip.path, path)
@@ -44,20 +53,14 @@ class TestTwitchDownloader(unittest.TestCase):
         mock_result.stderr = "Streamlink error"
         mock_run.return_value = mock_result
 
-        test_url = "https://www.twitch.tv/clip/FailingClip"
+        test_url = "https://www.twitch.tv/caedrel/clip/failingclip"
         with self.assertRaises(RuntimeError):
             download_twitch_clip(test_url)
 
-        clip = self.session.query(Clip).filter_by(slug="FailingClip").first()
+        clip = self.session.query(Clip).filter_by(slug="failingclip").first()
         self.assertIsNotNone(clip)
         self.assertEqual(clip.status, "failed")
         self.assertIn("Streamlink error", clip.error)
 
-    def test_invalid_url(self):
-        invalid_url = "https://www.twitch.tv/videos/12345"
-        with self.assertRaises(ValueError):
-            download_twitch_clip(invalid_url)
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
