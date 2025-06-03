@@ -1,120 +1,84 @@
-# 🎮 Clip Downloader (Twitch Edition)
+# Clip Downloader
 
-A modular microservice built in Python to **automatically download Twitch clips**, organize them, perform light editing (e.g., subtitles), and prepare for upload to platforms like YouTube Shorts. This forms part of an automated **clip farm** project aiming to scale monetizable content creation.
+This project downloads clips from Twitch and TikTok, stores their metadata in a local SQLite database (`clipfarm.db`), and prepares them for further processing (e.g., subtitle removal and overlay for Chinese videos).
 
----
-
-## 📁 Project Structure
+## Project Structure
 
 ```
 clip-downloader/
-├── config.py                      # Loads Twitch API credentials from env
-├── downloader/
-│   ├── __init__.py
-│   ├── twitch_api.py             # Handles OAuth and Twitch API requests
-│   ├── twitch_downloader.py     # Downloads clips via Streamlink
-│   └── fetch_top_clips.py       # Entrypoint for fetching top clips
 ├── db/
-│   ├── __init__.py
-│   ├── db.py                     # DB engine and session setup
-│   ├── clip_dao.py               # Clip insert/query logic
-│   └── models.py                 # SQLAlchemy model definitions
-├── tests/
-│   ├── test_fetch_top_clips.py
-│   ├── test_twitch_api.py
-│   ├── test_twitch_downloader.py
-│   └── ...
-├── requirements.txt
-├── .env                          # Optional - store Twitch credentials
-└── README.md
+│   ├── db.py
+│   ├── models.py
+│   ├── clip_dao.py
+├── downloader/
+│   ├── twitch/
+│   │   ├── twitch_api.py
+│   │   ├── twitch_downloader.py
+│   │   ├── fetch_top_clips.py
+│   ├── tiktok/
+│   │   ├── tiktok_scraper.py
+│   │   ├── fetch_top_hashtag_videos.py
+│   │   ├── fix_cookies.py
+│   │   ├── stealth.min.js
+│   │   ├── cookies.json
+├── clips/
+│   ├── twitch/...      # Saved Twitch clips
+│   ├── tiktok/...      # Saved TikTok clips
+│   └── samples/...     # Test input videos
 ```
 
----
-
-## 🧠 Features
-
-* ✅ Fetches top Twitch clips by period (day/week/month)
-* ✅ Downloads clips in `.mp4` using Streamlink
-* ✅ Stores metadata in SQLite (with Oracle planned)
-* ✅ Saves clips under: `/clips/twitch/{streamer}/{YYYY-MM-DD}/clipname.mp4`
-* ✅ Fully unit tested with mocks and patching
-* ⚙️ Ready for expansion: subtitles, watermarks, upload pipeline
-
----
-
-## ⚙️ Setup
-
-### 1. Clone the repo
+## Requirements
 
 ```bash
-git clone https://github.com/yourusername/clip-downloader.git
-cd clip-downloader
-```
-
-### 2. Install dependencies
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
 pip install -r requirements.txt
+playwright install
+sudo apt install libnss3 libatk-bridge2.0-0 libxss1 libasound2 libxshmfence1 libgbm1 libgtk-3-0
 ```
 
-### 3. Set environment variables
+## TikTok Hashtag Scraping
 
-Use a `.env` file or export manually:
+The `downloader/tiktok/tiktok_scraper.py` script fetches top TikTok videos from a given hashtag using Playwright.
 
-```env
-TWITCH_CLIENT_ID=your_client_id
-TWITCH_CLIENT_SECRET=your_client_secret
-```
+**Key Features:**
 
----
+* Headless browser with stealth.js injection
+* Cookie-based authentication (needed to avoid detection)
+* Scrolls dynamically to reveal video links
+* Extracts top 10 video links and titles
 
-## ▶️ Usage
-
-### Fetch top clips (e.g., daily)
+### Running:
 
 ```bash
-python -m downloader.twitch.fetch_top_clips day
+python3 -m downloader.tiktok.fetch_top_hashtag_videos
 ```
 
-Periods: `day`, `week`, `month`
+### Setting Up `cookies.json`
 
----
-
-## 🧪 Testing
-
-Tests are located in `tests/`. They mock all external dependencies (API, filesystem, environment).
+1. Install **[Cookie-Editor Chrome Extension](https://chrome.google.com/webstore/detail/cookie-editor/kkkbiiikibmpmjijgimjkkikbemlallb)**
+2. Go to [https://www.tiktok.com/tag/funny](https://www.tiktok.com/tag/funny)
+3. Click Cookie Editor → Export → Copy
+4. Paste into `downloader/tiktok/cookies.json`
+5. Run the fixer script:
 
 ```bash
-pytest
+python3 downloader/tiktok/fix_cookies.py
 ```
 
-Make sure to patch `TWITCH_CLIP_ROOT` to isolate file paths during tests.
+This will patch all cookies to include the required `sameSite` attribute.
 
----
+## Subtitle Removal (Proof of Concept)
 
-## 📌 Dependencies
+We tested automatic removal and translation overlay on a Douyin/TikTok frame:
 
-* `requests` – Twitch API calls
-* `streamlink` – Downloads .mp4 from Twitch clip URLs
-* `sqlalchemy` – ORM for metadata
-* `python-dotenv` – Optional env loader
-* `pytest` & `unittest.mock` – Test framework
+* Detected red-colored Chinese subtitles using HSV masking
+* Removed with inpainting
+* Overlaid English translation in its place
 
----
+This will be expanded to full-video automation.
 
-## 🚧 Coming Soon
+## Next Steps
 
-* Automated subtitle generation (Whisper)
-* Language localization pipeline
-* Video editing module (FFmpeg, watermarking)
-* Upload automation to Shorts, TikTok, etc.
-
----
-
-## 💬 Feedback & Contributions
-
-If you're using this as part of a clip-farm automation stack, feel free to contribute ideas or raise issues.
-
----
+* Batch subtitle removal over full videos
+* Whisper-based audio transcription + translation
+* Subtitle re-rendering in consistent style
+* Auto-upload pipeline
