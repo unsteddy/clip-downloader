@@ -17,6 +17,12 @@ clipfarm.db
 # Downloaded clip files
 clips/
 
+# Library from postinstall
+downloader/tiktok/stealth.min.js
+
+# cookies
+downloader/tiktok/cookies.json
+
 # Logs
 *.log
 logs/
